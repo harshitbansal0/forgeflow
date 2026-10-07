@@ -1,0 +1,62 @@
+<div class="login-screen">
+  <section class="login-card">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" class="login-progress" />
+    }
+    <div class="login-brand">
+      <mat-icon>precision_manufacturing</mat-icon>
+      <div>
+        <h1>ForgeFlow</h1>
+        <p>Product lifecycle management</p>
+      </div>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+      <mat-form-field>
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" autocomplete="username" />
+        @if (form.controls.email.hasError('email')) {
+          <mat-error>Enter a valid email address.</mat-error>
+        } @else if (form.controls.email.hasError('required')) {
+          <mat-error>Email is required.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Password</mat-label>
+        <input matInput [type]="hidePassword() ? 'password' : 'text'" formControlName="password" autocomplete="current-password" />
+        <button
+          mat-icon-button
+          matSuffix
+          type="button"
+          (click)="hidePassword.set(!hidePassword())"
+          [attr.aria-label]="hidePassword() ? 'Show password' : 'Hide password'"
+        >
+          <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+        </button>
+        @if (form.controls.password.hasError('required')) {
+          <mat-error>Password is required.</mat-error>
+        }
+      </mat-form-field>
+
+      @if (error(); as message) {
+        <p class="login-error" role="alert">{{ message }}</p>
+      }
+
+      <button mat-flat-button type="submit" [disabled]="loading()">Sign in</button>
+    </form>
+
+    <div class="demo-accounts">
+      <h2>Demo accounts</h2>
+      <p class="muted">Seeded in development. Click one to fill the form.</p>
+      <div class="demo-grid">
+        @for (account of demoAccounts; track account.email) {
+          <button type="button" class="demo-account" (click)="useDemoAccount(account)">
+            <span class="demo-name">{{ account.name }}</span>
+            <span class="demo-role">{{ account.role }}</span>
+          </button>
+        }
+      </div>
+    </div>
+  </section>
+</div>

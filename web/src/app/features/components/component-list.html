@@ -1,0 +1,120 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Components</h1>
+      <p class="subtitle">Parts, materials and software used in product bills of materials.</p>
+    </div>
+    @if (auth.canEdit()) {
+      <button mat-flat-button (click)="create()"><mat-icon>add</mat-icon> New component</button>
+    }
+  </header>
+
+  <div class="filter-bar">
+    <mat-form-field class="search-field" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <mat-label>Search part number, name, material or supplier</mat-label>
+      <input matInput [formControl]="search" />
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Type</mat-label>
+      <mat-select value="" (selectionChange)="list.setFilter('type', $event.value)">
+        <mat-option value="">All</mat-option>
+        @for (type of componentTypes; track type) {
+          <mat-option [value]="type">{{ type }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Lifecycle</mat-label>
+      <mat-select value="" (selectionChange)="list.setFilter('lifecycleState', $event.value)">
+        <mat-option value="">All</mat-option>
+        @for (state of lifecycleStates; track state) {
+          <mat-option [value]="state">{{ state | enumLabel }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="table-container">
+    @if (list.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <table
+      mat-table
+      class="data-table"
+      [dataSource]="list.items()"
+      matSort
+      [matSortActive]="list.sort().active"
+      [matSortDirection]="list.sort().direction"
+      (matSortChange)="list.onSort($event)"
+    >
+      <ng-container matColumnDef="partNumber">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Part number</th>
+        <td mat-cell *matCellDef="let component">
+          <a class="number-link" [routerLink]="['/components', component.id]" (click)="$event.stopPropagation()">{{ component.partNumber }}</a>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+        <td mat-cell *matCellDef="let component">
+          {{ component.name }}
+          @if (component.material) {
+            <div class="muted">{{ component.material }}</div>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Type</th>
+        <td mat-cell *matCellDef="let component">{{ component.type }}</td>
+      </ng-container>
+      <ng-container matColumnDef="lifecycleState">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Lifecycle</th>
+        <td mat-cell *matCellDef="let component"><app-status-chip [value]="component.lifecycleState" /></td>
+      </ng-container>
+      <ng-container matColumnDef="revision">
+        <th mat-header-cell *matHeaderCellDef>Revision</th>
+        <td mat-cell *matCellDef="let component" class="nowrap">
+          @if (component.releasedRevision) {
+            <span>Rev {{ component.releasedRevision }}</span>
+          }
+          @if (component.releasedRevision && component.workingRevision) {
+            <span class="muted"> · </span>
+          }
+          @if (component.workingRevision) {
+            <span class="muted">Rev {{ component.workingRevision }} {{ component.workingRevisionStatus | enumLabel }}</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="supplier">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Supplier</th>
+        <td mat-cell *matCellDef="let component">{{ component.supplier ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="unitCost">
+        <th mat-header-cell *matHeaderCellDef>Unit cost</th>
+        <td mat-cell *matCellDef="let component">
+          {{ component.unitCost === null ? '—' : (component.unitCost | currency: 'EUR') }} / {{ component.unitOfMeasure }}
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="updatedAt">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Last updated</th>
+        <td mat-cell *matCellDef="let component">{{ component.updatedAtUtc | date: 'medium' }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable-row" (click)="open(row)"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="mat-mdc-cell empty" [attr.colspan]="columns.length">
+          {{ list.loading() ? 'Loading…' : 'No components match the current filters.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <mat-paginator
+    [length]="list.result().totalCount"
+    [pageIndex]="list.pageIndex()"
+    [pageSize]="list.pageSize()"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    (page)="list.onPage($event)"
+  />
+</div>

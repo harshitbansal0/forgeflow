@@ -1,0 +1,77 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav
+    #drawer
+    class="shell-nav"
+    [mode]="isHandset() ? 'over' : 'side'"
+    [opened]="!isHandset()"
+  >
+    <a class="brand" routerLink="/dashboard">
+      <mat-icon>precision_manufacturing</mat-icon>
+      <span>ForgeFlow</span>
+    </a>
+    <mat-nav-list>
+      @for (item of navItems(); track item.path) {
+        <a
+          mat-list-item
+          [routerLink]="item.path"
+          routerLinkActive="active-link"
+          #link="routerLinkActive"
+          [activated]="link.isActive"
+          (click)="isHandset() && drawer.close()"
+        >
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+          @if (item.path === '/approvals' && pendingApprovals() > 0) {
+            <span matListItemMeta class="nav-count">{{ pendingApprovals() }}</span>
+          }
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar class="shell-toolbar">
+      @if (isHandset()) {
+        <button mat-icon-button (click)="drawer.toggle()" aria-label="Toggle navigation">
+          <mat-icon>menu</mat-icon>
+        </button>
+      }
+      <div class="search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          placeholder="Search products, components and changes"
+          aria-label="Global search"
+          [formControl]="searchControl"
+          [matAutocomplete]="searchPanel"
+        />
+        <mat-autocomplete #searchPanel="matAutocomplete" [displayWith]="displayResult" (optionSelected)="openResult($event.option.value)">
+          @for (result of searchResults(); track result.type + result.id) {
+            <mat-option [value]="result">
+              <span class="result-type">{{ result.type | enumLabel }}</span>
+              <strong>{{ result.number }}</strong>
+              <span class="result-title">{{ result.title }}</span>
+            </mat-option>
+          }
+        </mat-autocomplete>
+      </div>
+      <span class="spacer"></span>
+      <button mat-button class="user-button" [matMenuTriggerFor]="userMenu">
+        <mat-icon>account_circle</mat-icon>
+        <span class="user-name">{{ auth.user()?.displayName }}</span>
+        <span class="role-tag">{{ auth.user()?.role }}</span>
+      </button>
+      <mat-menu #userMenu="matMenu" xPosition="before">
+        <div class="menu-header">{{ auth.user()?.email }}</div>
+        <button mat-menu-item (click)="auth.logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Sign out</span>
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

@@ -1,0 +1,109 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Products</h1>
+      <p class="subtitle">Top-level assemblies with their revisions and bills of materials.</p>
+    </div>
+    @if (auth.canEdit()) {
+      <button mat-flat-button (click)="create()"><mat-icon>add</mat-icon> New product</button>
+    }
+  </header>
+
+  <div class="filter-bar">
+    <mat-form-field class="search-field" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <mat-label>Search number, name or category</mat-label>
+      <input matInput [formControl]="search" />
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Lifecycle</mat-label>
+      <mat-select value="" (selectionChange)="list.setFilter('lifecycleState', $event.value)">
+        <mat-option value="">All</mat-option>
+        @for (state of lifecycleStates; track state) {
+          <mat-option [value]="state">{{ state | enumLabel }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Category</mat-label>
+      <mat-select value="" (selectionChange)="list.setFilter('category', $event.value)">
+        <mat-option value="">All</mat-option>
+        @for (category of categories(); track category) {
+          <mat-option [value]="category">{{ category }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="table-container">
+    @if (list.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <table
+      mat-table
+      class="data-table"
+      [dataSource]="list.items()"
+      matSort
+      [matSortActive]="list.sort().active"
+      [matSortDirection]="list.sort().direction"
+      (matSortChange)="list.onSort($event)"
+    >
+      <ng-container matColumnDef="productNumber">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Number</th>
+        <td mat-cell *matCellDef="let product">
+          <a class="number-link" [routerLink]="['/products', product.id]" (click)="$event.stopPropagation()">{{ product.productNumber }}</a>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+        <td mat-cell *matCellDef="let product">{{ product.name }}</td>
+      </ng-container>
+      <ng-container matColumnDef="category">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Category</th>
+        <td mat-cell *matCellDef="let product">{{ product.category }}</td>
+      </ng-container>
+      <ng-container matColumnDef="lifecycleState">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Lifecycle</th>
+        <td mat-cell *matCellDef="let product"><app-status-chip [value]="product.lifecycleState" /></td>
+      </ng-container>
+      <ng-container matColumnDef="revision">
+        <th mat-header-cell *matHeaderCellDef>Revision</th>
+        <td mat-cell *matCellDef="let product" class="nowrap">
+          @if (product.releasedRevision) {
+            <span>Rev {{ product.releasedRevision }}</span>
+          }
+          @if (product.releasedRevision && product.workingRevision) {
+            <span class="muted"> · </span>
+          }
+          @if (product.workingRevision) {
+            <span class="muted">Rev {{ product.workingRevision }} {{ product.workingRevisionStatus | enumLabel }}</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="owner">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Owner</th>
+        <td mat-cell *matCellDef="let product">{{ product.ownerName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="updatedAt">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Last updated</th>
+        <td mat-cell *matCellDef="let product">{{ product.updatedAtUtc | date: 'medium' }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable-row" (click)="open(row)"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="mat-mdc-cell empty" [attr.colspan]="columns.length">
+          {{ list.loading() ? 'Loading…' : 'No products match the current filters.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <mat-paginator
+    [length]="list.result().totalCount"
+    [pageIndex]="list.pageIndex()"
+    [pageSize]="list.pageSize()"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    (page)="list.onPage($event)"
+  />
+</div>

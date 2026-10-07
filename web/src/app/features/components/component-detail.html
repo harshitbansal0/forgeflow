@@ -1,0 +1,167 @@
+@if (component(); as c) {
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <a class="back-link" routerLink="/components"><mat-icon>arrow_back</mat-icon> Components</a>
+        <h1>{{ c.partNumber }} · {{ c.name }}</h1>
+        <div class="header-meta">
+          <app-status-chip [value]="c.lifecycleState" />
+          <span>{{ c.type }}</span>
+          @if (c.supplier) {
+            <span>·</span>
+            <span>{{ c.supplier }}</span>
+          }
+        </div>
+      </div>
+      <div class="header-actions">
+        @if (auth.canEdit()) {
+          <button mat-stroked-button (click)="edit()"><mat-icon>edit</mat-icon> Edit</button>
+          @if (workingRevision(); as working) {
+            @if (working.openChangeId) {
+              <a mat-stroked-button [routerLink]="['/changes', working.openChangeId]">
+                <mat-icon>published_with_changes</mat-icon> {{ working.openChangeNumber }}
+              </a>
+            } @else if (working.status === 'Draft') {
+              <button mat-flat-button (click)="raiseChange()"><mat-icon>send</mat-icon> Raise change for Rev {{ working.revisionCode }}</button>
+            }
+          } @else if (c.lifecycleState !== 'Obsolete') {
+            <button mat-flat-button (click)="revise()"><mat-icon>call_split</mat-icon> New revision</button>
+          }
+        }
+        @if (auth.isAdmin()) {
+          <button mat-icon-button matTooltip="Delete component" aria-label="Delete component" (click)="delete()">
+            <mat-icon>delete</mat-icon>
+          </button>
+        }
+      </div>
+    </header>
+
+    <mat-tab-group animationDuration="0ms" mat-stretch-tabs="false">
+      <mat-tab label="Revisions">
+        <div class="tab-body table-container">
+          <table mat-table class="data-table" [dataSource]="c.revisions">
+            <ng-container matColumnDef="revisionCode">
+              <th mat-header-cell *matHeaderCellDef>Revision</th>
+              <td mat-cell *matCellDef="let r" class="mono">Rev {{ r.revisionCode }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let r">
+                <app-status-chip [value]="r.status" />
+                @if (r.openChangeId) {
+                  <a class="muted" [routerLink]="['/changes', r.openChangeId]"> {{ r.openChangeNumber }}</a>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="drawingNumber">
+              <th mat-header-cell *matHeaderCellDef>Drawing</th>
+              <td mat-cell *matCellDef="let r">{{ r.drawingNumber ?? '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="weightKg">
+              <th mat-header-cell *matHeaderCellDef>Weight</th>
+              <td mat-cell *matCellDef="let r">{{ r.weightKg === null ? '—' : (r.weightKg | number: '1.0-3') + ' kg' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="changeSummary">
+              <th mat-header-cell *matHeaderCellDef>Change summary</th>
+              <td mat-cell *matCellDef="let r">{{ r.changeSummary ?? '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="released">
+              <th mat-header-cell *matHeaderCellDef>Released</th>
+              <td mat-cell *matCellDef="let r">
+                @if (r.releasedAtUtc) {
+                  {{ r.releasedAtUtc | date: 'mediumDate' }}
+                  @if (r.releasedByChangeId) {
+                    · <a [routerLink]="['/changes', r.releasedByChangeId]">{{ r.releasedByChangeNumber }}</a>
+                  }
+                } @else {
+                  —
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let r" class="actions-cell">
+                @if (auth.canEdit() && r.status === 'Draft') {
+                  <button mat-icon-button matTooltip="Edit revision" aria-label="Edit revision" (click)="editRevision(r)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                }
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="revisionColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: revisionColumns"></tr>
+          </table>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Where used ({{ whereUsed().length }})">
+        <div class="tab-body table-container">
+          <table mat-table class="data-table" [dataSource]="whereUsed()">
+            <ng-container matColumnDef="productNumber">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let row">
+                <a class="number-link" [routerLink]="['/products', row.productId]">{{ row.productNumber }}</a>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let row">{{ row.productName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="revision">
+              <th mat-header-cell *matHeaderCellDef>Product revision</th>
+              <td mat-cell *matCellDef="let row" class="nowrap">Rev {{ row.revisionCode }} <app-status-chip [value]="row.revisionStatus" /></td>
+            </ng-container>
+            <ng-container matColumnDef="quantity">
+              <th mat-header-cell *matHeaderCellDef>Qty</th>
+              <td mat-cell *matCellDef="let row" class="nowrap">{{ row.quantity | number: '1.0-4' }} {{ c.unitOfMeasure }}</td>
+            </ng-container>
+            <ng-container matColumnDef="referenceDesignator">
+              <th mat-header-cell *matHeaderCellDef>Ref. des.</th>
+              <td mat-cell *matCellDef="let row" class="nowrap">{{ row.referenceDesignator ?? '—' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="whereUsedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: whereUsedColumns"></tr>
+            <tr class="mat-mdc-row" *matNoDataRow>
+              <td class="mat-mdc-cell empty" [attr.colspan]="whereUsedColumns.length">Not used in any product BOM.</td>
+            </tr>
+          </table>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Details">
+        <div class="tab-body">
+          <dl class="facts panel">
+            <dt>Part number</dt>
+            <dd class="number-link">{{ c.partNumber }}</dd>
+            <dt>Name</dt>
+            <dd>{{ c.name }}</dd>
+            <dt>Type</dt>
+            <dd>{{ c.type }}</dd>
+            <dt>Material</dt>
+            <dd>{{ c.material ?? '—' }}</dd>
+            <dt>Supplier</dt>
+            <dd>{{ c.supplier ?? '—' }}</dd>
+            <dt>Unit cost</dt>
+            <dd>{{ c.unitCost === null ? '—' : (c.unitCost | currency: 'EUR') + ' / ' + c.unitOfMeasure }}</dd>
+            <dt>Lifecycle</dt>
+            <dd>{{ c.lifecycleState | enumLabel }}</dd>
+            <dt>Description</dt>
+            <dd>{{ c.description || '—' }}</dd>
+            <dt>Created</dt>
+            <dd>{{ c.createdAtUtc | date: 'medium' }} by {{ c.createdBy }}</dd>
+            <dt>Last updated</dt>
+            <dd>{{ c.updatedAtUtc ? (c.updatedAtUtc | date: 'medium') + ' by ' + c.updatedBy : '—' }}</dd>
+          </dl>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="History">
+        <div class="tab-body">
+          <app-history-timeline [entries]="history()" />
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+} @else {
+  <mat-progress-bar mode="indeterminate" />
+}

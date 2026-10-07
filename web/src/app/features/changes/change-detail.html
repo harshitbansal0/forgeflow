@@ -1,0 +1,158 @@
+@if (change(); as c) {
+  <div class="page">
+    @if (busy()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <header class="page-header">
+      <div>
+        <a class="back-link" routerLink="/changes"><mat-icon>arrow_back</mat-icon> Engineering changes</a>
+        <h1>{{ c.changeNumber }} · {{ c.title }}</h1>
+        <div class="header-meta">
+          <app-status-chip [value]="c.status" />
+          <app-status-chip [value]="c.priority" />
+          <span>Requested by {{ c.requestedBy }} on {{ c.createdAtUtc | date: 'mediumDate' }}</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        @let actions = c.availableActions;
+        @if (actions.canEdit) {
+          <button mat-stroked-button [disabled]="busy()" (click)="edit()"><mat-icon>edit</mat-icon> Edit</button>
+        }
+        @if (actions.canCancel) {
+          <button mat-stroked-button [disabled]="busy()" (click)="cancel()"><mat-icon>block</mat-icon> Cancel change</button>
+        }
+        @if (actions.canSubmit) {
+          <button mat-flat-button [disabled]="busy()" (click)="submit()"><mat-icon>send</mat-icon> Submit for approval</button>
+        }
+        @if (actions.canApprove) {
+          <button mat-stroked-button [disabled]="busy()" (click)="reject()"><mat-icon>thumb_down</mat-icon> Reject</button>
+          <button mat-flat-button [disabled]="busy()" (click)="approve()"><mat-icon>thumb_up</mat-icon> Approve</button>
+        }
+        @if (actions.canImplement) {
+          <button mat-flat-button [disabled]="busy()" (click)="implement()"><mat-icon>rocket_launch</mat-icon> Implement</button>
+        }
+      </div>
+    </header>
+
+    <div class="two-column">
+      <div class="page">
+        <section class="panel">
+          <div class="panel-title"><h2>Description</h2></div>
+          <dl class="facts">
+            <dt>Description</dt>
+            <dd>{{ c.description }}</dd>
+            <dt>Reason</dt>
+            <dd>{{ c.reason || '—' }}</dd>
+            <dt>Workflow</dt>
+            <dd>{{ c.workflowName }}</dd>
+            <dt>Submitted</dt>
+            <dd>{{ c.submittedAtUtc ? (c.submittedAtUtc | date: 'medium') : '—' }}</dd>
+            <dt>Decided</dt>
+            <dd>{{ c.decidedAtUtc ? (c.decidedAtUtc | date: 'medium') : '—' }}</dd>
+            <dt>Implemented</dt>
+            <dd>{{ c.implementedAtUtc ? (c.implementedAtUtc | date: 'medium') : '—' }}</dd>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">
+            <h2>Affected items</h2>
+            @if (c.availableActions.canEdit) {
+              <button mat-stroked-button (click)="addItem()"><mat-icon>add</mat-icon> Add item</button>
+            }
+          </div>
+          <table mat-table class="data-table" [dataSource]="c.affectedItems">
+            <ng-container matColumnDef="itemType">
+              <th mat-header-cell *matHeaderCellDef>Type</th>
+              <td mat-cell *matCellDef="let item">{{ item.itemType }}</td>
+            </ng-container>
+            <ng-container matColumnDef="itemNumber">
+              <th mat-header-cell *matHeaderCellDef>Number</th>
+              <td mat-cell *matCellDef="let item">
+                <a class="number-link" [routerLink]="itemLink(item)">{{ item.itemNumber }}</a>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="itemName">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let item">{{ item.itemName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="revision">
+              <th mat-header-cell *matHeaderCellDef>Revision</th>
+              <td mat-cell *matCellDef="let item">Rev {{ item.revisionCode }} <app-status-chip [value]="item.revisionStatus" /></td>
+            </ng-container>
+            <ng-container matColumnDef="note">
+              <th mat-header-cell *matHeaderCellDef>Note</th>
+              <td mat-cell *matCellDef="let item" class="muted">{{ item.note }}</td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let item" class="actions-cell">
+                <button mat-icon-button matTooltip="Remove from change" aria-label="Remove from change" (click)="removeItem(item)">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="itemColumns()"></tr>
+            <tr mat-row *matRowDef="let row; columns: itemColumns()"></tr>
+            <tr class="mat-mdc-row" *matNoDataRow>
+              <td class="mat-mdc-cell empty" [attr.colspan]="itemColumns().length">No affected items yet.</td>
+            </tr>
+          </table>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Approval workflow</h2>
+        <p class="muted">{{ c.workflowName }}</p>
+        @if (c.approvalSteps.length) {
+          <ol class="step-list">
+            @for (step of c.approvalSteps; track step.id) {
+              <li class="step-item" [attr.data-status]="step.status">
+                <span class="step-index">{{ step.stepOrder }}</span>
+                <div>
+                  <div class="step-title">{{ step.name }} <app-status-chip [value]="step.status" /></div>
+                  <div class="step-meta">
+                    {{ step.approverRole }} · {{ step.decisions.length }} of {{ step.requiredApprovals }} approval{{ step.requiredApprovals === 1 ? '' : 's' }}
+                    @if (step.completedAtUtc) {
+                      · completed {{ step.completedAtUtc | date: 'medium' }}
+                    } @else if (step.activatedAtUtc) {
+                      · waiting since {{ step.activatedAtUtc | date: 'medium' }}
+                    }
+                  </div>
+                  @for (decision of step.decisions; track decision.id) {
+                    <div class="decision">
+                      <strong>{{ decision.outcome | enumLabel }}</strong> by {{ decision.approverName }} · {{ decision.decidedAtUtc | date: 'medium' }}
+                      @if (decision.comment) {
+                        <div>“{{ decision.comment }}”</div>
+                      }
+                    </div>
+                  }
+                </div>
+              </li>
+            }
+          </ol>
+        } @else if (plannedWorkflow(); as workflow) {
+          <p class="muted">Steps are copied from the workflow when the change is submitted:</p>
+          <ol class="step-list">
+            @for (step of workflow.steps; track step.id) {
+              <li class="step-item">
+                <span class="step-index">{{ step.stepOrder }}</span>
+                <div>
+                  <div class="step-title">{{ step.name }}</div>
+                  <div class="step-meta">{{ step.approverRole }} · {{ step.requiredApprovals }} approval{{ step.requiredApprovals === 1 ? '' : 's' }}</div>
+                </div>
+              </li>
+            }
+          </ol>
+        }
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-title"><h2>History</h2></div>
+      <app-history-timeline [entries]="history()" />
+    </section>
+  </div>
+} @else {
+  <mat-progress-bar mode="indeterminate" />
+}

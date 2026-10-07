@@ -1,0 +1,110 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="subtitle">Welcome back, {{ firstName() }}. Here is the current state of the product portfolio.</p>
+    </div>
+    @if (auth.canEdit()) {
+      <div class="header-actions">
+        <a mat-stroked-button routerLink="/products"><mat-icon>add</mat-icon> New product</a>
+        <a mat-flat-button routerLink="/changes/new"><mat-icon>published_with_changes</mat-icon> Raise change</a>
+      </div>
+    }
+  </header>
+
+  @if (data(); as d) {
+    <section class="kpi-grid">
+      <a class="kpi-card" routerLink="/products">
+        <mat-icon>inventory_2</mat-icon>
+        <span class="kpi-value">{{ d.productCount }}</span>
+        <span class="kpi-label">Products</span>
+      </a>
+      <a class="kpi-card" routerLink="/components">
+        <mat-icon>settings_input_component</mat-icon>
+        <span class="kpi-value">{{ d.componentCount }}</span>
+        <span class="kpi-label">Components</span>
+      </a>
+      <a class="kpi-card" routerLink="/changes">
+        <mat-icon>published_with_changes</mat-icon>
+        <span class="kpi-value">{{ d.openChangeCount }}</span>
+        <span class="kpi-label">Open engineering changes</span>
+      </a>
+      @if (auth.canApprove()) {
+        <a class="kpi-card" [class.highlight]="d.pendingApprovalCount > 0" routerLink="/approvals">
+          <mat-icon>fact_check</mat-icon>
+          <span class="kpi-value">{{ d.pendingApprovalCount }}</span>
+          <span class="kpi-label">Waiting for my approval</span>
+        </a>
+      }
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="panel">
+        <div class="panel-title"><h2>Products by lifecycle</h2></div>
+        @for (row of d.productsByLifecycle; track row.key) {
+          <div class="bar-row">
+            <span>{{ row.key | enumLabel }}</span>
+            <div class="bar-track"><div class="bar-fill" [style.width.%]="percent(row, d.productsByLifecycle)"></div></div>
+            <span class="bar-value">{{ row.count }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><h2>Engineering changes by status</h2></div>
+        @for (row of d.changesByStatus; track row.key) {
+          <div class="bar-row">
+            <span>{{ row.key | enumLabel }}</span>
+            <div class="bar-track"><div class="bar-fill" [style.width.%]="percent(row, d.changesByStatus)"></div></div>
+            <span class="bar-value">{{ row.count }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><h2>Recent releases</h2></div>
+        <ul class="simple-list">
+          @for (release of d.recentReleases; track release.itemType + release.itemId + release.revisionCode) {
+            <li>
+              <div>
+                <a class="number-link" [routerLink]="[release.itemType === 'Product' ? '/products' : '/components', release.itemId]">
+                  {{ release.itemNumber }}
+                </a>
+                Rev {{ release.revisionCode }}
+                <div class="secondary-line">{{ release.itemName }}</div>
+              </div>
+              <span class="secondary-line">{{ release.releasedAtUtc | date: 'mediumDate' }}</span>
+            </li>
+          } @empty {
+            <li class="muted">Nothing released yet.</li>
+          }
+        </ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><h2>Recent activity</h2></div>
+        <ul class="simple-list">
+          @for (activity of d.recentActivity; track activity.id) {
+            <li>
+              <div>
+                <app-status-chip [value]="activity.action" />
+                @let target = link(activity.entityType, activity.entityId);
+                @if (target) {
+                  <a [routerLink]="target"> {{ activity.summary }}</a>
+                } @else {
+                  <span> {{ activity.summary }}</span>
+                }
+                <div class="secondary-line">{{ activity.userName }}</div>
+              </div>
+              <span class="secondary-line">{{ activity.timestampUtc | date: 'short' }}</span>
+            </li>
+          } @empty {
+            <li class="muted">No activity yet.</li>
+          }
+        </ul>
+      </div>
+    </section>
+  } @else {
+    <mat-progress-bar mode="indeterminate" />
+  }
+</div>
