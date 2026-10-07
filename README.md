@@ -83,18 +83,20 @@ The backend is a layered **ASP.NET Core 9** REST API on **Entity Framework Core 
 
 ```mermaid
 flowchart LR
-    SPA["Angular 20 SPA<br/>Angular Material, signals"] -- "REST + JWT" --> API
+    SPA["Angular 20 SPA<br/>Angular Material, signals"]
     subgraph Backend["ASP.NET Core 9"]
         API["ForgeFlow.Api<br/>controllers, auth policies,<br/>ProblemDetails, Swagger"]
         APP["ForgeFlow.Application<br/>use-case services, DTOs,<br/>validation, paging"]
         DOM["ForgeFlow.Domain<br/>entities and business rules"]
         INF["ForgeFlow.Infrastructure<br/>EF Core, audit pipeline,<br/>JWT, seeding"]
-        API --> APP
-        API --> INF
-        INF --> APP
-        APP --> DOM
     end
-    INF --> DB[("SQL Server<br/>SQLite for local dev")]
+    DB[("SQL Server<br/>SQLite for local dev")]
+    SPA -- "REST + JWT" --> API
+    API --> APP
+    API --> INF
+    INF --> APP
+    APP --> DOM
+    INF --> DB
 ```
 
 | Project | Responsibility |
